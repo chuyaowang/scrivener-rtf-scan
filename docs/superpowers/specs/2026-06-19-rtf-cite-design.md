@@ -110,8 +110,9 @@ Each stage is an independently testable function.
 
 6. **Splice.** Replace each original `\{…\}` marker span in the source RTF with
    its sanitized in-text citation fragment. Append the sanitized bibliography
-   under a "References" heading inserted before the document's final `}`. Write
-   to the output path.
+   under a **"Bibliography"** heading inserted before the document's final `}`.
+   (The `# References` heading in step 4 is only an internal pandoc sentinel.)
+   Write to the output path.
 
 ## Error Handling
 
@@ -142,5 +143,5 @@ this.
 
 - Running the tool on the sample thesis produces a `_cited.rtf` that opens in a
   word processor with Nature-style in-text citations in place of every marker
-  and a Nature-style reference list at the end.
+  and a Nature-style reference list under a "Bibliography" heading at the end.
 - No source marker is silently dropped; unmatched ones are reported.
