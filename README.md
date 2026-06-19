@@ -101,6 +101,6 @@ with each entry separated by a semicolon.
 > for that step.
 
 ## License
-
 This work is licensed under a [Creative Commons Attribution-NonCommercial 4.0 International License](http://creativecommons.org/licenses/by-nc/4.0/).
-[![CC BY-NC 4.0](https://shields.io)](http://creativecommons.org/licenses/by-nc/4.0/)
+
+[![License: CC BY-NC 4.0](https://licensebuttons.net/l/by-nc/4.0/80x15.png)](https://creativecommons.org/licenses/by-nc/4.0/)
