@@ -1,4 +1,4 @@
-# Scrivener RTF Citation Scanner
+# Scrivener RTF Citation Scanner 
 
 A command-line tool (`rtf-cite`) that replaces the plain-text citation
 placeholders that Zotero's **RTF Scan** Quick Copy format leaves in an RTF file
@@ -99,3 +99,8 @@ with each entry separated by a semicolon.
 > **Why not Zotero's Tools → RTF Scan?** Zotero's built-in RTF Scan mishandles
 > placeholders that contain multiple references; `rtf-cite` is the replacement
 > for that step.
+
+## License
+
+This work is licensed under a [Creative Commons Attribution-NonCommercial 4.0 International License](http://creativecommons.org/licenses/by-nc/4.0/).
+[![CC BY-NC 4.0](https://shields.io)](http://creativecommons.org/licenses/by-nc/4.0/)
