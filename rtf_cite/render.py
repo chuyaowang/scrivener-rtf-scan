@@ -1,5 +1,11 @@
 import re
 import subprocess
+from pathlib import Path
+
+# Lua filter that unwraps every link to its plain text, so the rendered RTF
+# contains no HYPERLINK field (or visible URL) -- just the underlying text.
+_STRIP_LINKS_LUA = str(
+    Path(__file__).resolve().parent.parent / "filters" / "strip-links.lua")
 
 
 def build_markdown(groups):
@@ -22,8 +28,8 @@ def render_with_pandoc(groups, bib_path, csl_path):
     md = build_markdown(groups)
     out = subprocess.run(
         ["pandoc", "--citeproc", "--csl", csl_path,
-         "--bibliography", bib_path, "-f", "markdown", "-t", "rtf",
-         "--wrap=none"],
+         "--bibliography", bib_path, "--lua-filter", _STRIP_LINKS_LUA,
+         "-f", "markdown", "-t", "rtf", "--wrap=none"],
         input=md, capture_output=True, text=True, check=True,
     ).stdout
     body = _strip_rtf_wrapper(out)

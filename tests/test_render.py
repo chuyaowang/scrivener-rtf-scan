@@ -42,3 +42,27 @@ def test_render_returns_citations_and_bibliography(tmp_path):
     assert citations[0].strip() != ""          # non-empty formatted in-text cite
     assert "Smith" in bibliography              # bibliography contains the entry
     assert r"\rtf" not in citations[0]          # fragment, not a full document
+    assert "HYPERLINK" not in bibliography       # links stripped, no URL field
+
+
+def test_bibliography_has_no_hyperlink_but_keeps_title(tmp_path):
+    # A DOI-bearing entry must render its title as plain text, with no
+    # HYPERLINK field left behind (the field is what leaks a visible
+    # 'HYPERLINK "url"' string into word processors).
+    bib = tmp_path / "b.bib"
+    bib.write_text(r"""
+@article{Doi2018,
+  author = {Jane Doe},
+  title = {A Linked Title},
+  journal = {J. Test},
+  year = {2018},
+  volume = {4},
+  pages = {10},
+  doi = {10.1234/abc}
+}
+""")
+    style = tmp_path / "s.csl"
+    shutil.copy("styles/nature.csl", style)
+    _cites, bibliography = render_with_pandoc([["Doi2018"]], str(bib), str(style))
+    assert "HYPERLINK" not in bibliography
+    assert "A linked title" in bibliography or "A Linked Title" in bibliography
