@@ -1,8 +1,9 @@
-# rtf-cite
+# Scrivener RTF Citation Scanner
 
-Replace the plain-text citation placeholders that Zotero's **RTF Scan** Quick
-Copy format leaves in an RTF file with properly formatted in-text citations,
-and append a bibliography — using any CSL citation style.
+A command-line tool (`rtf-cite`) that replaces the plain-text citation
+placeholders that Zotero's **RTF Scan** Quick Copy format leaves in an RTF file
+with properly formatted in-text citations, and appends a bibliography — using
+any CSL citation style.
 
 ## Why this exists
 
