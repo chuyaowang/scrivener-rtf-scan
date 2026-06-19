@@ -95,7 +95,10 @@ Each stage is an independently testable function.
    tie, disambiguate by first-author surname + year. Verified: 0 unmatched on
    the current `master_thesis.rtf` + `export.bib`.
 
-4. **Render via pandoc.** Build a Markdown document:
+4. **Render via pandoc.** Build a Markdown document. All references in **one**
+   marker go into a **single** citation group so the style collapses them into
+   one grouped citation — e.g. superscript `1,2,3` (not separate `1` `2` `3`)
+   or `[1,2,3]` (not `[1][2][3]`). Concretely:
    - one line per marker: `«SENTINEL_n» [@key1; @key2; ...]`
    - a trailing `# References` heading.
    Run `pandoc --citeproc --csl styles/<style>.csl --bibliography <bib>
@@ -110,8 +113,9 @@ Each stage is an independently testable function.
 
 6. **Splice.** Replace each original `\{…\}` marker span in the source RTF with
    its sanitized in-text citation fragment. Append the sanitized bibliography
-   under a "References" heading inserted before the document's final `}`. Write
-   to the output path.
+   under a **"Bibliography"** heading inserted before the document's final `}`.
+   (The `# References` heading in step 4 is only an internal pandoc sentinel.)
+   Write to the output path.
 
 ## Error Handling
 
@@ -142,5 +146,7 @@ this.
 
 - Running the tool on the sample thesis produces a `_cited.rtf` that opens in a
   word processor with Nature-style in-text citations in place of every marker
-  and a Nature-style reference list at the end.
+  and a Nature-style reference list under a "Bibliography" heading at the end.
 - No source marker is silently dropped; unmatched ones are reported.
+- A marker with multiple references renders as one grouped citation
+  (e.g. `1,2,3` / `[1,2,3]`), not as separate adjacent citations.

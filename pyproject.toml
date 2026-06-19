@@ -1,0 +1,15 @@
+[project]
+name = "rtf-cite"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["bibtexparser>=1.4"]
+
+[project.scripts]
+rtf-cite = "rtf_cite.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["rtf_cite*"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
