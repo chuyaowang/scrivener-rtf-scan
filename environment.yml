@@ -1,0 +1,8 @@
+name: rtf-cite
+channels: [conda-forge]
+dependencies:
+  - python=3.12
+  - pip
+  - pytest
+  - pip:
+      - bibtexparser>=1.4
