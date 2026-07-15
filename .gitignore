@@ -3,3 +3,26 @@ __pycache__/
 .pytest_cache/
 *.egg-info/
 *_cited.rtf
+*_cited.tex
+
+# User manuscripts and their Zotero exports (never committed)
+export.bib
+master_thesis.rtf
+master_thesis.tex/
+thesis_intro.docx
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.out
+*.toc
+*.idx
+*.ilg
+*.ind
+*.lof
+*.lot
+*.log
+*.fls
+*.fdb_latexmk
+*.synctex.gz
