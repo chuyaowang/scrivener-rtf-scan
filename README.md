@@ -65,9 +65,61 @@ rtf-cite thesis.tex --bib export.bib -o thesis_cited.tex
   reference list should appear.
 - `--style` is ignored for `.tex` input.
 
-Compile the result the usual way (four steps: `pdflatex`, `bibtex`, then
-`pdflatex` twice — or just `latexmk -pdf thesis_cited`). `bibtex` must be able
-to find your `.bib`, so keep it in the compile directory or set `BIBINPUTS`.
+Compile the result the usual way — `pdflatex`, `bibtex`, then `pdflatex` twice,
+or just `latexmk -pdf thesis_cited`. `bibtex` resolves `\bibliography{...}`
+relative to the compile directory, so keep the `.bib` there (or set
+`BIBINPUTS`).
+
+### One-shot rebuild (`scripts/build.sh`)
+
+Scrivener overwrites its compiled `.tex` on every compile, which brings the
+placeholders back. This script closes that loop in one command — it inserts the
+citations, then builds both a PDF and a `.docx`:
+
+```bash
+./scripts/build.sh master_thesis.tex/master_thesis.tex
+```
+
+It reads the Scrivener-owned `.tex` without ever writing to it (emitting a
+separate `<stem>_cited.tex`), so it is safe to re-run after every compile. It
+also copies the `.bib` into the compile directory for `bibtex`, and resolves
+`rtf-cite` from `PATH` or falls back to `conda run`.
+
+| Option | Default | Purpose |
+| --- | --- | --- |
+| `-b, --bib` | `export.bib` at repo root | BibTeX file |
+| `-s, --style` | `styles/nature.csl` | CSL style, **docx only** |
+| `-c, --cite-command` | `citep` | natbib command |
+| `-e, --env` | `rtf-cite` | conda env, if not on `PATH` |
+| `--no-pdf` / `--no-docx` | both built | Skip a format |
+
+Because `latexmk` often exits nonzero on benign warnings while still producing
+a valid PDF, the script judges success on whether the output files were
+actually created, and points at `<stem>_cited.build.log` when one is missing.
+
+Note that the PDF and the docx are formatted by **different** machinery: the
+PDF uses natbib and your `\bibliographystyle{...}`, while the docx uses pandoc
+with the CSL style from `--style`. Align the two if consistent citation
+formatting matters.
+
+### Other output formats
+
+Once a `.tex` carries real `\citep` commands, pandoc can render it to any
+format it supports, resolving the citations from the `.bib`:
+
+```bash
+pandoc thesis_cited.tex --citeproc --bibliography=export.bib \
+  --csl=styles/nature.csl -o thesis.docx
+```
+
+The output format follows the `-o` extension (`.docx`, `.odt`, `.html`,
+`.epub`). Add `--reference-doc=template.docx` to control docx styling.
+
+Pandoc parses LaTeX rather than running it, so document-class and custom-macro
+features do not survive: unknown commands are dropped **along with their
+arguments**. Annotation macros such as `\todo{...}` (and wrappers built on
+`\newcommandx`) disappear silently. Check tables and structure before relying
+on a converted file.
 
 ### Bundled styles
 
