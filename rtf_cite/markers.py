@@ -33,10 +33,16 @@ def parse_reference(text):
     )
 
 
+def _normalize_quotes(text):
+    # LaTeX (from Scrivener's tex compile) wraps titles in ``...'' rather than
+    # straight double quotes. Fold both onto '"' so one parser handles RTF+TeX.
+    return text.replace("``", '"').replace("''", '"')
+
+
 def extract_markers(text):
     markers = []
     for m in _MARKER_RE.finditer(text):
-        inner = m.group(1)
+        inner = _normalize_quotes(m.group(1))
         # Qualify: must contain a quoted title and a 4-digit year.
         if '"' not in inner or not re.search(r'\d{4}', inner):
             continue
