@@ -1,9 +1,10 @@
-# Scrivener RTF Citation Scanner 
+# Scrivener RTF Citation Scanner
 
 A command-line tool (`rtf-cite`) that replaces the plain-text citation
-placeholders that Zotero's **RTF Scan** Quick Copy format leaves in an RTF file
-with properly formatted in-text citations, and appends a bibliography — using
-any CSL citation style.
+placeholders left by Zotero's **RTF Scan** Quick Copy format with properly
+formatted citations. It handles **RTF** (rendering citations with any CSL style
+and appending a bibliography) and **LaTeX** (emitting natbib `\citep` commands
+for LaTeX to format at compile time).
 
 ## Why this exists
 
@@ -32,7 +33,14 @@ conda activate rtf-cite
 pip install -e .
 ```
 
-Requires `pandoc` 3.x on PATH.
+External requirements depend on what you build:
+
+| You want | You need |
+| --- | --- |
+| `.rtf` input | `pandoc` 3.x on PATH |
+| `.tex` input | nothing extra — citations are inserted as plain text |
+| PDF via `scripts/build.sh` | `latexmk` and a LaTeX distribution |
+| docx via `scripts/build.sh` | `pandoc` 3.x |
 
 ## Usage
 
@@ -77,7 +85,7 @@ placeholders back. This script closes that loop in one command — it inserts th
 citations, then builds both a PDF and a `.docx`:
 
 ```bash
-./scripts/build.sh master_thesis.tex/master_thesis.tex
+./scripts/build.sh path/to/thesis.tex
 ```
 
 It reads the Scrivener-owned `.tex` without ever writing to it (emitting a
@@ -92,6 +100,7 @@ also copies the `.bib` into the compile directory for `bibtex`, and resolves
 | `-c, --cite-command` | `citep` | natbib command |
 | `-e, --env` | `rtf-cite` | conda env, if not on `PATH` |
 | `--no-pdf` / `--no-docx` | both built | Skip a format |
+| `-h, --help` | — | Show usage |
 
 Because `latexmk` often exits nonzero on benign warnings while still producing
 a valid PDF, the script judges success on whether the output files were
@@ -157,7 +166,9 @@ When you need to cite something mid-sentence:
    Scrivener).
 2. Hit **Alt+Y / Cmd+Y** → Zotero opens.
 3. Find your source, and drag it into Scrivener (or copy it with Quick Copy).
-4. Zotero drops a placeholder that looks like this: `{Smith, 2019, #234}`.
+4. Zotero drops a placeholder that looks like this:
+   `{Pappas et al., "Invasive candidiasis", 2018}` — author phrase, quoted
+   title, year.
 
 That's it — you keep writing. The placeholder just sits there as plain text, not
 a real citation yet. Multiple sources cited together appear as one placeholder
@@ -165,25 +176,41 @@ with each entry separated by a semicolon.
 
 ### At the end (when you're ready for a final output)
 
-1. In Scrivener, **compile** your thesis to an **.RTF file**.
+1. In Scrivener, **compile** your thesis — to **.RTF**, or to **LaTeX** if you
+   want a typeset PDF.
 2. Export your library from Zotero as a **BibTeX** file (e.g. `export.bib`).
-3. Run `rtf-cite` on the compiled RTF:
+3. Run the tool on the compiled file.
 
-   ```bash
-   rtf-cite thesis.rtf --bib export.bib --style nature -o thesis_cited.rtf
-   ```
+**If you compiled to RTF:**
 
-   - Choose your citation style with `--style` (see Bundled styles above).
-   - `rtf-cite` finds every `{placeholder}` tag, replaces it with a real
-     formatted citation, and appends a **Bibliography** at the end.
-   - Any placeholder it can't match to a BibTeX entry is reported and left
-     in place, so nothing is silently lost.
+```bash
+rtf-cite thesis.rtf --bib export.bib --style nature -o thesis_cited.rtf
+```
+
+Choose your citation style with `--style` (see Bundled styles above).
+`rtf-cite` finds every `{placeholder}`, replaces it with a real formatted
+citation, and appends a **Bibliography** at the end.
+
+**If you compiled to LaTeX:**
+
+```bash
+./scripts/build.sh thesis.tex
+```
+
+This inserts natbib citations and builds the PDF and docx in one step. Because
+Scrivener rewrites its compiled `.tex` on every compile — restoring the
+placeholders — re-run this after each one.
+
+Either way, any placeholder that can't be matched to a BibTeX entry is reported
+on stderr and left in place, so nothing is silently lost.
 
 > **Why not Zotero's Tools → RTF Scan?** Zotero's built-in RTF Scan mishandles
 > placeholders that contain multiple references; `rtf-cite` is the replacement
 > for that step.
 
 ## License
+
 This work is licensed under a [Creative Commons Attribution-NonCommercial 4.0 International License](http://creativecommons.org/licenses/by-nc/4.0/).
+See [LICENSE](LICENSE) for the full text.
 
 [![License: CC BY-NC 4.0](https://licensebuttons.net/l/by-nc/4.0/80x15.png)](https://creativecommons.org/licenses/by-nc/4.0/)
