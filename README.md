@@ -15,6 +15,15 @@ a single placeholder contains multiple references** (e.g.
 single grouped citation (e.g. superscript `1,2,3` or a range `1-3`), and is a
 drop-in replacement for the final "RTF Scan" step described below.
 
+The tool auto-detects the input format from the file extension:
+
+- **`.rtf`** — replaces markers with CSL-formatted citations and appends a
+  bibliography (uses `pandoc` + a bundled `.csl` style).
+- **`.tex`** — replaces markers with **natbib** `\cite` commands (no
+  bibliography is appended; LaTeX builds it from `\bibliography{...}` at
+  compile time). This suits a Scrivener project compiled to LaTeX rather than
+  RTF.
+
 ## Setup
 
 ```bash
@@ -32,11 +41,33 @@ rtf-cite thesis.rtf --bib export.bib --style nature -o thesis_cited.rtf
 ```
 
 - `--style` takes a bundled style name (default `nature`) or a path to a `.csl`
-  file.
+  file. (Only used for `.rtf` input.)
 - Multiple references inside one placeholder render as a single grouped citation
   (e.g. superscript `1,2,3` or a collapsed range `1-3`).
 - Unmatched placeholders are reported on stderr and left untouched in the
   output.
+
+### LaTeX / natbib
+
+For a `.tex` input, each placeholder is replaced by a single natbib command,
+with multiple references collapsed into one grouped citation:
+
+```bash
+rtf-cite thesis.tex --bib export.bib -o thesis_cited.tex
+```
+
+- `--cite-command` selects the natbib command (default `citep` for
+  parenthetical; use `citet` for textual). A grouped placeholder becomes
+  e.g. `\citep{Brown2014,Desai2018,Thomson2016}`.
+- No bibliography is appended. Your preamble supplies it — add
+  `\usepackage[sort&compress]{natbib}` (so grouped keys sort and compress into
+  ranges), and `\bibliographystyle{...}` + `\bibliography{export.bib}` where the
+  reference list should appear.
+- `--style` is ignored for `.tex` input.
+
+Compile the result the usual way (four steps: `pdflatex`, `bibtex`, then
+`pdflatex` twice — or just `latexmk -pdf thesis_cited`). `bibtex` must be able
+to find your `.bib`, so keep it in the compile directory or set `BIBINPUTS`.
 
 ### Bundled styles
 

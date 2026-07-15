@@ -7,6 +7,7 @@ from .bib import index_bib, match_reference
 from .render import render_with_pandoc
 from .sanitize import sanitize_rtf
 from .splice import splice_document
+from .tex import replace_markers_tex
 
 STYLES_DIR = Path(__file__).resolve().parent.parent / "styles"
 
@@ -22,13 +23,36 @@ def resolve_style(style):
     sys.exit(f"Unknown style '{style}'. Available: {', '.join(available)}")
 
 
+def _run_tex(args):
+    text = Path(args.input).read_text(encoding="utf-8")
+    index = index_bib(args.bib)
+    out_text, unmatched = replace_markers_tex(
+        text, index, cite_cmd=args.cite_command)
+    out_path = args.output or str(Path(args.input).with_name(
+        Path(args.input).stem + "_cited.tex"))
+    Path(out_path).write_text(out_text, encoding="utf-8")
+
+    n_markers = len(extract_markers(text))
+    if unmatched:
+        sys.stderr.write("WARNING: unmatched references (left as-is):\n")
+        for u in unmatched:
+            sys.stderr.write(f"  - {u}\n")
+    print(f"Wrote {out_path} ({n_markers} markers, {len(unmatched)} unmatched)")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="rtf-cite")
     ap.add_argument("input")
     ap.add_argument("--bib", required=True)
-    ap.add_argument("--style", default="nature")
+    ap.add_argument("--style", default="nature",
+                    help="CSL style for RTF input (ignored for .tex input)")
+    ap.add_argument("--cite-command", default="citep",
+                    help="natbib command for .tex input (e.g. citep, citet)")
     ap.add_argument("-o", "--output")
     args = ap.parse_args(argv)
+
+    if Path(args.input).suffix.lower() == ".tex":
+        return _run_tex(args)
 
     csl = resolve_style(args.style)
     rtf = Path(args.input).read_text(encoding="latin-1")
