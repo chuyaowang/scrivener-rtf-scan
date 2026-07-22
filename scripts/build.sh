@@ -9,6 +9,9 @@
 #   <stem>.tex --rtf-cite--> <stem>_cited.tex --latexmk--> <stem>_cited.pdf
 #                                             --pandoc---> <stem>_cited.docx
 #
+# References are audited statically before the build (see check_refs.py): an
+# unmatched \ref is fatal, an unreferenced figure or table is a warning.
+#
 # The Scrivener-owned .tex is only ever read, never written, so this is safe
 # to re-run after every compile.
 #
@@ -28,6 +31,7 @@ ENV_NAME="rtf-cite"
 CITE_CMD="citep"
 DO_PDF=1
 DO_DOCX=1
+DO_REF_CHECK=1
 INPUT=""
 
 die()  { printf 'error: %s\n' "$*" >&2; exit 1; }
@@ -49,6 +53,7 @@ Options:
   -c, --cite-command C natbib command         (default: citep)
       --no-pdf         Skip the PDF build
       --no-docx        Skip the docx build
+      --no-ref-check   Don't fail on unmatched \ref targets (draft builds)
   -h, --help           Show this help
 
 Example:
@@ -64,6 +69,7 @@ while [[ $# -gt 0 ]]; do
     -c|--cite-command) CITE_CMD="${2:-}"; shift 2 ;;
     --no-pdf)          DO_PDF=0;          shift ;;
     --no-docx)         DO_DOCX=0;         shift ;;
+    --no-ref-check)    DO_REF_CHECK=0;    shift ;;
     -h|--help)         usage; exit 0 ;;
     -*)                usage >&2; die "unknown option: $1" ;;
     *)                 INPUT="$1";        shift ;;
@@ -103,6 +109,22 @@ run_rtf_cite() {
 step "Inserting citations -> $JOB.tex"
 run_rtf_cite "$INPUT" --bib "$BIB" --cite-command "$CITE_CMD" \
   -o "$TEX_DIR/$JOB.tex" || die "citation step failed"
+
+# Cheaper to catch a dangling \ref here than to find it 90 seconds into latexmk.
+# Scanned on the Scrivener input, not the _cited.tex, so the reported line
+# numbers match the file you actually edit (rtf-cite substitutes in place).
+step "Checking references"
+CHECKER="$REPO_ROOT/scripts/check_refs.py"
+if (( DO_REF_CHECK )) && [[ -f "$CHECKER" ]]; then
+  if command -v python3 >/dev/null 2>&1; then
+    python3 "$CHECKER" "$INPUT" \
+      || die "unmatched references (fix them, or pass --no-ref-check)"
+  else
+    warn "python3 not found -- skipping reference check"
+  fi
+else
+  printf '  skipped\n'
+fi
 
 # bibtex resolves \bibliography{export.bib} relative to the compile directory.
 cp "$BIB" "$TEX_DIR/"
