@@ -13,8 +13,10 @@
 # to re-run after every compile.
 #
 # Note: latexmk often exits nonzero on benign warnings while still producing a
-# good PDF, so success is judged on whether the output files were actually
-# created, not on exit codes.
+# good PDF, so its exit code alone is not a verdict. But file existence alone
+# isn't either: a pdflatex crash mid-write leaves a truncated PDF behind, which
+# used to let a broken build report success. So the PDF is judged on three
+# things -- no hard failure in the log, the file exists, and it ends in %%EOF.
 
 set -uo pipefail
 
@@ -112,10 +114,22 @@ if (( DO_PDF )); then
   step "Building PDF (latexmk)"
   command -v latexmk >/dev/null 2>&1 || die "latexmk not found on PATH"
   rm -f "$JOB.pdf"
-  if ! latexmk -pdf -interaction=nonstopmode "$JOB.tex" > "$JOB.build.log" 2>&1; then
-    warn "latexmk exited nonzero (usually just warnings) -- verifying output"
+  latexmk -pdf -interaction=nonstopmode "$JOB.tex" > "$JOB.build.log" 2>&1
+  latexmk_status=$?
+
+  # latexmk prints this only when a target genuinely failed to build; benign
+  # warnings never produce it, so it separates real failures from noise.
+  if grep -q 'Errors, so I did not complete making targets' "$JOB.build.log"; then
+    die "latexmk failed to build the PDF; see $TEX_DIR/$JOB.build.log"
   fi
+  (( latexmk_status == 0 )) \
+    || warn "latexmk exited $latexmk_status (warnings only) -- verifying output"
+
   [[ -f "$JOB.pdf" ]] || die "no PDF produced; see $TEX_DIR/$JOB.build.log"
+
+  # A complete PDF ends in %%EOF. A pdflatex that died mid-write does not.
+  tail -c 1024 "$JOB.pdf" | grep -qa '%%EOF' \
+    || die "PDF is truncated, no %%EOF (pdflatex likely crashed mid-write); see $TEX_DIR/$JOB.build.log"
 fi
 
 if (( DO_DOCX )); then
