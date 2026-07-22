@@ -4,12 +4,14 @@ __pycache__/
 *.egg-info/
 *_cited.rtf
 *_cited.tex
+.DS_Store
 
 # User manuscripts and their Zotero exports (never committed)
 export.bib
 master_thesis.rtf
 master_thesis.tex/
 thesis_intro.docx
+thesis_figures/
 
 # LaTeX build artifacts
 *.aux
