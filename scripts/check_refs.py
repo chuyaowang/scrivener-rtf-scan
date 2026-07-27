@@ -2,13 +2,17 @@
 """
 check_refs.py -- static cross-reference audit for a Scrivener-compiled thesis.
 
-Two checks, run before latexmk so a dangling \\ref costs a second instead of a
+Three checks, run before latexmk so a dangling \\ref costs a second instead of a
 90-second build:
 
   1. Unmatched references -- a \\ref whose target has no \\label. These print
      "??" in the finished PDF, so they are fatal (exit 1).
 
-  2. Floats that are never referenced -- a figure or table the reader is never
+  2. Duplicate labels -- the same \\label name defined more than once. LaTeX
+     keeps the last definition and only warns, so every \\ref to that name may
+     silently resolve to the wrong float or section. Fatal (exit 1).
+
+  3. Floats that are never referenced -- a figure or table the reader is never
      pointed at, or one carrying no label at all. Advisory only (exit 0).
 
 Float labels are identified by name prefix (fig:, figure:, tab:, table:), not by
@@ -53,10 +57,14 @@ def main(path):
         print(f"error: cannot read {path}: {e}", file=sys.stderr)
         return 2
 
-    labels = {}
+    # Record every line a name is defined on, not just the first: a name that
+    # appears twice is a duplicate label (check 2), and LaTeX resolves \ref to
+    # its *last* definition, so the collision has to be surfaced.
+    label_lines = {}
     for i, line in enumerate(lines, 1):
         for m in LABEL_RE.finditer(line):
-            labels.setdefault(m.group(1), i)
+            label_lines.setdefault(m.group(1), []).append(i)
+    labels = {n: ls[0] for n, ls in label_lines.items()}
 
     refs = {}
     for i, line in enumerate(lines, 1):
@@ -68,12 +76,15 @@ def main(path):
     # --- check 1: unmatched references (fatal) --------------------------------
     unmatched = {n: ls for n, ls in refs.items() if n not in labels}
 
-    # --- check 2: floats never referenced (advisory) --------------------------
+    # --- check 2: duplicate labels (fatal) ------------------------------------
+    duplicates = {n: ls for n, ls in label_lines.items() if len(ls) > 1}
+
+    # --- check 3: floats never referenced (advisory) --------------------------
     unreferenced = sorted(
         (l, n) for n, l in float_labels.items() if n not in refs
     )
 
-    # --- check 2b: captions carrying no label at all (advisory) ---------------
+    # --- check 3b: captions carrying no label at all (advisory) ---------------
     unlabelled = []
     for i, line in enumerate(lines, 1):
         if not CAPTION_RE.search(line):
@@ -95,6 +106,8 @@ def main(path):
     n_float_ok = n_floats - len(unreferenced)
     n_targets = len(refs)
     n_target_ok = n_targets - len(unmatched)
+    n_names = len(label_lines)
+    n_defs = sum(len(ls) for ls in label_lines.values())
     n_sections = len(labels) - n_floats
 
     float_issues = []
@@ -104,6 +117,9 @@ def main(path):
         float_issues.append(f"{len(unlabelled)} with no label")
 
     rows = [
+        ("labels",
+         f"{n_defs} defined, {n_names} distinct names",
+         f"{len(duplicates)} DUPLICATED" if duplicates else "OK"),
         ("figures/tables",
          f"{n_floats} defined, {n_float_ok} referenced at least once",
          ", ".join(float_issues) if float_issues else "OK"),
@@ -116,6 +132,13 @@ def main(path):
         print(f"  {name:<14} : {body:<{width}}   {verdict}")
     if n_sections:
         print(f"  ignored: {n_sections} Scrivener section labels")
+
+    if duplicates:
+        print(f"\n  DUPLICATE LABELS ({len(duplicates)}) "
+              f"-- \\ref silently resolves to the last definition:")
+        for name in sorted(duplicates, key=lambda n: duplicates[n][0]):
+            where = ", ".join(str(l) for l in duplicates[name])
+            print(f"    \\label{{{name}}}  defined on lines {where}")
 
     if unmatched:
         print(f"\n  UNMATCHED REFERENCES ({len(unmatched)}) "
@@ -139,7 +162,7 @@ def main(path):
             print(f"    line {line_no}: {text}")
 
 
-    return 1 if unmatched else 0
+    return 1 if (unmatched or duplicates) else 0
 
 
 if __name__ == "__main__":

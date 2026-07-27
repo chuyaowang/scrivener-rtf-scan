@@ -127,7 +127,7 @@ CHECKER="$REPO_ROOT/scripts/check_refs.py"
 if (( DO_REF_CHECK )) && [[ -f "$CHECKER" ]]; then
   if command -v python3 >/dev/null 2>&1; then
     python3 "$CHECKER" "$INPUT" \
-      || die "unmatched references (fix them, or pass --no-ref-check)"
+      || die "reference check failed: unmatched \\ref or duplicate labels (fix them, or pass --no-ref-check)"
   else
     warn "python3 not found -- skipping reference check"
   fi
