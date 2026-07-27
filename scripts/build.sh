@@ -20,6 +20,10 @@
 # isn't either: a pdflatex crash mid-write leaves a truncated PDF behind, which
 # used to let a broken build report success. So the PDF is judged on three
 # things -- no hard failure in the log, the file exists, and it ends in %%EOF.
+#
+# With --two-stage, latexmk resolves references with figures in draft mode
+# (correct-sized boxes, no embedded pixels) and a single final pdflatex pass
+# embeds them, so the large PDF is written once instead of on every pass.
 
 set -uo pipefail
 
@@ -32,6 +36,7 @@ CITE_CMD="citep"
 DO_PDF=1
 DO_DOCX=1
 DO_REF_CHECK=1
+TWO_STAGE=0
 INPUT=""
 
 die()  { printf 'error: %s\n' "$*" >&2; exit 1; }
@@ -54,6 +59,9 @@ Options:
       --no-pdf         Skip the PDF build
       --no-docx        Skip the docx build
       --no-ref-check   Don't fail on unmatched \ref targets (draft builds)
+      --two-stage      Resolve refs with figures in draft, then embed them on a
+      --fast           single final pass. Writes the large PDF once instead of
+                       on every latexmk pass -- faster for high-res figures.
   -h, --help           Show this help
 
 Example:
@@ -70,6 +78,7 @@ while [[ $# -gt 0 ]]; do
     --no-pdf)          DO_PDF=0;          shift ;;
     --no-docx)         DO_DOCX=0;         shift ;;
     --no-ref-check)    DO_REF_CHECK=0;    shift ;;
+    --two-stage|--fast) TWO_STAGE=1;      shift ;;
     -h|--help)         usage; exit 0 ;;
     -*)                usage >&2; die "unknown option: $1" ;;
     *)                 INPUT="$1";        shift ;;
@@ -136,16 +145,48 @@ if (( DO_PDF )); then
   step "Building PDF (latexmk)"
   command -v latexmk >/dev/null 2>&1 || die "latexmk not found on PATH"
   rm -f "$JOB.pdf"
-  latexmk -pdf -interaction=nonstopmode "$JOB.tex" > "$JOB.build.log" 2>&1
-  latexmk_status=$?
 
-  # latexmk prints this only when a target genuinely failed to build; benign
-  # warnings never produce it, so it separates real failures from noise.
-  if grep -q 'Errors, so I did not complete making targets' "$JOB.build.log"; then
-    die "latexmk failed to build the PDF; see $TEX_DIR/$JOB.build.log"
+  if (( TWO_STAGE )); then
+    command -v pdflatex >/dev/null 2>&1 || die "pdflatex not found on PATH"
+
+    # Stage 1: stabilize .aux/.toc/.bbl with graphicx in draft mode. Draft
+    # reserves each figure's true-size box -- so pagination and every \ref page
+    # number are identical to the final -- but skips embedding the image data,
+    # so these repeated passes write a tiny PDF instead of the full one.
+    # \PassOptionsToPackage is queued before \documentclass loads graphicx.
+    printf '  stage 1/2: resolving references (figures in draft)\n'
+    latexmk -pdf -interaction=nonstopmode \
+      -pdflatex='pdflatex -interaction=nonstopmode %O "\PassOptionsToPackage{draft}{graphicx}\input{%S}"' \
+      "$JOB.tex" > "$JOB.build.log" 2>&1
+    if grep -q 'Errors, so I did not complete making targets' "$JOB.build.log"; then
+      die "latexmk failed during stage 1 (reference resolution); see $TEX_DIR/$JOB.build.log"
+    fi
+
+    # Drop the draft PDF so a stage-2 crash can't pass the checks below by
+    # leaving the tiny draft file (which has its own valid %%EOF) behind.
+    rm -f "$JOB.pdf"
+
+    # Stage 2: one plain pdflatex pass. The .aux is already stable, so a single
+    # run embeds every figure at full resolution and writes the large PDF once.
+    printf '  stage 2/2: embedding figures at full resolution\n'
+    pdflatex -interaction=nonstopmode "$JOB.tex" >> "$JOB.build.log" 2>&1
+    pdf_status=$?
+    if grep -q 'no output PDF file produced' "$JOB.build.log"; then
+      die "pdflatex failed during stage 2 (figure embedding); see $TEX_DIR/$JOB.build.log"
+    fi
+  else
+    latexmk -pdf -interaction=nonstopmode "$JOB.tex" > "$JOB.build.log" 2>&1
+    pdf_status=$?
+
+    # latexmk prints this only when a target genuinely failed to build; benign
+    # warnings never produce it, so it separates real failures from noise.
+    if grep -q 'Errors, so I did not complete making targets' "$JOB.build.log"; then
+      die "latexmk failed to build the PDF; see $TEX_DIR/$JOB.build.log"
+    fi
   fi
-  (( latexmk_status == 0 )) \
-    || warn "latexmk exited $latexmk_status (warnings only) -- verifying output"
+
+  (( pdf_status == 0 )) \
+    || warn "PDF builder exited $pdf_status (warnings only) -- verifying output"
 
   [[ -f "$JOB.pdf" ]] || die "no PDF produced; see $TEX_DIR/$JOB.build.log"
 
