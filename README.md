@@ -82,7 +82,7 @@ relative to the compile directory, so keep the `.bib` there (or set
 
 Scrivener overwrites its compiled `.tex` on every compile, which brings the
 placeholders back. This script closes that loop in one command — it inserts the
-citations, then builds both a PDF and a `.docx`:
+citations, audits the cross-references, then builds both a PDF and a `.docx`:
 
 ```bash
 ./scripts/build.sh path/to/thesis.tex
@@ -100,11 +100,17 @@ also copies the `.bib` into the compile directory for `bibtex`, and resolves
 | `-c, --cite-command` | `citep` | natbib command |
 | `-e, --env` | `rtf-cite` | conda env, if not on `PATH` |
 | `--no-pdf` / `--no-docx` | both built | Skip a format |
+| `--no-ref-check` | audit on | Skip the cross-reference audit (draft builds) |
+| `--two-stage`, `--fast` | off | Use figure placeholders while resolving refs, embed figures on one final pass (faster for high-res figures) |
 | `-h, --help` | — | Show usage |
 
-Because `latexmk` often exits nonzero on benign warnings while still producing
-a valid PDF, the script judges success on whether the output files were
-actually created, and points at `<stem>_cited.build.log` when one is missing.
+Before building, it audits cross-references (`scripts/check_refs.py`): an
+unmatched `\ref` or duplicate `\label` fails the build and is listed with line
+numbers; unreferenced figures/tables and unlabelled captions are warnings.
+`--no-ref-check` skips it.
+
+A PDF counts as built only if the log has no fatal error, the file exists, and
+it ends in `%%EOF`. On any failure the script points at `<stem>_cited.build.log`.
 
 Note that the PDF and the docx are formatted by **different** machinery: the
 PDF uses natbib and your `\bibliographystyle{...}`, while the docx uses pandoc
